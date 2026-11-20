@@ -1,6 +1,7 @@
-# descargador-maquinas-dockerlabs
+# Dockerlabs-CLI
 
-Script en Bash para descargar máquinas de [DockerLabs](https://dockerlabs.es) desde la terminal.
+Script en Bash para descargar máquinas de [DockerLabs](https://dockerlabs.es) desde la terminal,
+junto con un writeup de cada una para cuando te atasques.
 
 Puedes buscar las máquinas por nombre o por dificultad, o dejar que el script elija una al azar.
 
@@ -16,8 +17,8 @@ Puedes buscar las máquinas por nombre o por dificultad, o dejar que el script e
 ## Instalación
 
 ```bash
-git clone https://github.com/luigi70289/descargador-maquinas-dockerlabs
-cd descargador-maquinas-dockerlabs
+git clone https://github.com/luigi70289/Dockerlabs-CLI
+cd Dockerlabs-CLI
 chmod +x dockerlabs.sh
 ```
 
@@ -27,8 +28,11 @@ chmod +x dockerlabs.sh
 |---|---|
 | `./dockerlabs.sh -l` | Lista todas las máquinas con su dificultad |
 | `./dockerlabs.sh -x <dificultad>` | Lista las máquinas de esa dificultad y te deja elegir una para descargar (`r` = una al azar) |
-| `./dockerlabs.sh -xr <dificultad>` | Descarga una máquina al azar de esa dificultad |
-| `./dockerlabs.sh -n <nombre>` | Descarga la máquina con ese nombre |
+| `./dockerlabs.sh -xr <dificultad>` | Descarga una máquina al azar de esa dificultad y un writeup al azar de ella |
+| `./dockerlabs.sh -n <nombre>` | Descarga solo la máquina |
+| `./dockerlabs.sh -w <nombre>` | Descarga la máquina y te deja elegir uno de sus writeups |
+| `./dockerlabs.sh -wr <nombre>` | Descarga la máquina y un writeup al azar |
+| `./dockerlabs.sh -w <nombre> -e <número o autor>` | Descarga la máquina y el writeup que indiques, sin preguntar |
 | `./dockerlabs.sh -h` | Muestra la ayuda |
 
 Dificultades: `muy-facil`, `facil`, `medio` y `dificil`.
@@ -39,6 +43,7 @@ Dificultades: `muy-facil`, `facil`, `medio` y `dificil`.
 ./dockerlabs.sh -x muy-facil   # ver las máquinas muy fáciles y elegir una
 ./dockerlabs.sh -xr facil      # una máquina fácil cualquiera
 ./dockerlabs.sh -n trust       # la máquina Trust
+./dockerlabs.sh -wr trust      # Trust y un writeup al azar
 ```
 
 No hace falta escribir mayúsculas ni tildes: `-n "perrito magico"` encuentra *Perrito Mágico*.
@@ -46,8 +51,10 @@ Si escribes solo una parte del nombre y hay varias máquinas que coinciden, el s
 
 ## Qué se descarga
 
-Todo se guarda en la carpeta desde la que ejecutas el script, como `<maquina>.zip`.
-Dentro del `.zip` vienen `<maquina>.tar` y `auto_deploy.sh`.
+Todo se guarda en la carpeta desde la que ejecutas el script:
+
+- `<maquina>.zip`: la máquina. Dentro vienen `<maquina>.tar` y `auto_deploy.sh`.
+- `<Maquina>_writeup_<autor>.md`: el writeup, en Markdown.
 
 ## Desplegar la máquina
 
@@ -64,20 +71,29 @@ pulsa `Ctrl+C` en esa terminal.
 - El script hace las mismas peticiones que harías tú con el navegador, y solo cuando lo ejecutas.
   No lo metas en bucles ni lo uses para descargar todas las máquinas de golpe: no sobrecargues
   los servidores de DockerLabs.
-- Se identifica ante la web como `descargador-maquinas-dockerlabs`, para que el creador sepa de dónde
+- Se identifica ante la web como `Dockerlabs-CLI`, para que el creador sepa de dónde
   vienen las peticiones.
 - Las máquinas se descargan siempre del servidor oficial. No las vuelvas a subir a otros sitios.
 - Las máquinas son vulnerables a propósito. Despliégalas solo en tu equipo y nunca ataques sistemas
   reales sin permiso.
 - Si el creador de DockerLabs pide que este script no se use o que cambie algo, se hará caso.
 
+## Sobre los writeups
+
+- Solo se descargan los writeups que están en GitHub como archivo `.md`. Los que son vídeos o están
+  en otras webs (Medium, Notion, Google Drive…) se ignoran porque no se pueden bajar desde un script.
+- Con `-wr`, si el writeup elegido falla, el script prueba con otro al azar.
+- Si una máquina no tiene writeups en GitHub, el script avisa y descarga la máquina igualmente.
+
+Intenta resolver la máquina tú primero y abre el writeup solo si te atascas 😉
+
 ## Cómo funciona
 
-El script lee la lista de máquinas de la página principal de dockerlabs.es y saca el enlace del `.zip`
-de la página de descarga de cada máquina. Si DockerLabs cambia su web, puede que el script deje de
+El script lee la lista de máquinas de la página principal de dockerlabs.es, saca el enlace del `.zip`
+de la página de descarga de cada máquina y pide los writeups a `dockerlabs.es/api/writeups/<máquina>`. Si DockerLabs cambia su web, puede que el script deje de
 funcionar hasta que se actualice.
 
 ## Créditos
 
-Las máquinas son de [DockerLabs](https://dockerlabs.es), creado por El Pingüino de Mario.
-Este script solo facilita la descarga.
+Las máquinas son de [DockerLabs](https://dockerlabs.es), creado por El Pingüino de Mario, y los writeups
+son de sus autores. Este script solo facilita la descarga.
