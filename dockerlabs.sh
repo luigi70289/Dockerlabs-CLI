@@ -10,6 +10,10 @@ WEB="https://dockerlabs.es"
 UA="Dockerlabs-CLI/1.0 (+https://github.com/luigi70289/Dockerlabs-CLI)"
 VERDE="\e[32m"; ROJO="\e[31m"; AMARILLO="\e[33m"; AZUL="\e[34m"; FIN="\e[0m"
 
+# Galletas (cookies) para iniciar sesión al enviar un writeup. Se borran al salir.
+GALLETAS=$(mktemp)
+trap 'rm -f "$GALLETAS"' EXIT
+
 ayuda() {
     echo -e "\nUso: $0 [opciones]\n"
     echo -e "  -l               Lista todas las máquinas"
@@ -20,6 +24,10 @@ ayuda() {
     echo -e "  -w <nombre>      Descarga la máquina y te deja elegir uno de sus writeups de GitHub"
     echo -e "  -wr <nombre>     Descarga la máquina y un writeup al azar de ella"
     echo -e "  -e <num|autor>   Junto con -w: elige el writeup directamente (por número o por autor)"
+    echo -e "  -s <maquina>     Envía (propone) un writeup de esa máquina a DockerLabs. Manda el ENLACE"
+    echo -e "                   de tu writeup, no el archivo. Requiere tu cuenta de DockerLabs."
+    echo -e "  -u <url>         Junto con -s: la URL de tu writeup (p. ej. tu .md en GitHub)"
+    echo -e "  -t <texto|video> Junto con -s: tipo de writeup (por defecto: texto)"
     echo -e "  -h               Muestra esta ayuda\n"
     echo -e "Ejemplos:"
     echo -e "  $0 -l"
@@ -223,6 +231,94 @@ writeup() {
     bajar_writeup "$(echo "$lista" | sed -n "${eleccion}p")"
 }
 
+# Envía (propone) un writeup a DockerLabs. No sube el archivo: manda el ENLACE de tu
+# writeup (por ejemplo tu .md en GitHub) y queda pendiente de que el equipo lo revise.
+#
+# Necesita tu cuenta de DockerLabs. Para no dejar la contraseña en el historial, el
+# script la pide en el momento (no se ve al teclear), o la lee de las variables
+# DOCKERLABS_USER y DOCKERLABS_PASS si prefieres no escribirlas cada vez.
+#
+# Argumentos: nombre de la máquina, URL del writeup, tipo (texto|video).
+enviar_writeup() {
+    local maquina="$1" url="$2" tipo="${3:-texto}"
+
+    if [ -z "$url" ]; then
+        echo -e "${ROJO}[-] Falta la URL del writeup. Usa -u <url>. Ejemplo: $0 -s trust -u https://.../trust.md${FIN}"
+        return 1
+    fi
+    case "$tipo" in
+        texto|video) ;;
+        *) echo -e "${ROJO}[-] El tipo debe ser 'texto' o 'video' (opción -t).${FIN}"; return 1 ;;
+    esac
+
+    # Comprobamos que la máquina existe y cogemos su nombre tal cual lo pide la web
+    local linea id dif nombre
+    linea=$(buscar "$maquina") || return 1
+    IFS=$'\t' read -r id dif nombre <<< "$linea"
+
+    # Credenciales: de las variables de entorno o preguntando en el momento
+    local user="$DOCKERLABS_USER" pass="$DOCKERLABS_PASS"
+    [ -z "$user" ] && { [ -t 0 ] && read -rp "Usuario de DockerLabs: " user; }
+    [ -z "$pass" ] && { [ -t 0 ] && { read -rsp "Contraseña: " pass; echo; }; }
+    if [ -z "$user" ] || [ -z "$pass" ]; then
+        echo -e "${ROJO}[-] Necesito tu usuario y contraseña de DockerLabs para enviar el writeup.${FIN}"
+        return 1
+    fi
+
+    # 1) Abrir el login para conseguir el csrf_token y la cookie de sesión
+    local pagina csrf
+    pagina=$(curl -A "$UA" -sfL -m 30 -c "$GALLETAS" "$WEB/login") || {
+        echo -e "${ROJO}[-] No se pudo abrir el login de DockerLabs.${FIN}"; return 1; }
+    csrf=$(echo "$pagina" | grep -oE 'name="csrf_token" value="[^"]+"' | head -1 \
+        | sed -E 's/.*value="([^"]+)".*/\1/')
+
+    # 2) Iniciar sesión
+    local cuerpo resp
+    cuerpo=$(python3 -c 'import json,sys; print(json.dumps({"username":sys.argv[1],"password":sys.argv[2]}))' "$user" "$pass")
+    resp=$(curl -A "$UA" -s -m 30 -c "$GALLETAS" -b "$GALLETAS" \
+        -H "Content-Type: application/json" -H "X-CSRFToken: $csrf" \
+        -d "$cuerpo" "$WEB/api/auth/login")
+    if ! echo "$resp" | python3 -c 'import json,sys
+try: d=json.load(sys.stdin)
+except Exception: d={}
+sys.exit(0 if d.get("success") else 1)'; then
+        local msg
+        msg=$(echo "$resp" | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("message",""))
+except Exception: print("")' 2>/dev/null)
+        echo -e "${ROJO}[-] No se pudo iniciar sesión. ${msg:-Revisa tu usuario y contraseña.}${FIN}"
+        return 1
+    fi
+    echo -e "${VERDE}[+] Sesión iniciada como $user.${FIN}"
+
+    # 3) Token CSRF ya autenticado (lo cogemos de una página normal)
+    local csrf2
+    csrf2=$(curl -A "$UA" -sfL -m 30 -b "$GALLETAS" "$WEB/" \
+        | grep -oE 'name="csrf-token" content="[^"]+"' | head -1 | sed -E 's/.*content="([^"]+)".*/\1/')
+    [ -z "$csrf2" ] && csrf2="$csrf"
+
+    # 4) Enviar el writeup
+    echo -e "${AZUL}[+]${FIN} Enviando writeup de ${VERDE}$nombre${FIN} ($tipo): $url"
+    cuerpo=$(python3 -c 'import json,sys; print(json.dumps({"maquina":sys.argv[1],"url":sys.argv[2],"tipo":sys.argv[3]}))' "$nombre" "$url" "$tipo")
+    resp=$(curl -A "$UA" -s -m 30 -b "$GALLETAS" \
+        -H "Content-Type: application/json" -H "X-CSRFToken: $csrf2" \
+        -d "$cuerpo" "$WEB/api/submit_writeup")
+
+    if echo "$resp" | python3 -c 'import json,sys
+try: d=json.load(sys.stdin)
+except Exception: d={}
+sys.exit(0 if (d.get("success") or d.get("ok")) else 1)'; then
+        echo -e "${VERDE}[+] Writeup enviado. Queda pendiente de que el equipo de DockerLabs lo revise.${FIN}"
+    else
+        local msg
+        msg=$(echo "$resp" | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("error") or json.load(sys.stdin).get("message",""))
+except Exception: print("")' 2>/dev/null)
+        echo -e "${ROJO}[-] No se pudo enviar el writeup. ${msg:-Respuesta inesperada del servidor.}${FIN}"
+        return 1
+    fi
+}
+
 # ---------- Programa principal ----------
 
 for herramienta in curl python3 shuf; do
@@ -243,13 +339,17 @@ done
 set -- "${args[@]}"
 
 LISTAR=""; DIFICULTAD=""; NOMBRE=""; WRITEUP=""; ELEGIDO=""; AZAR=""
-while getopts ":lx:n:w:e:rh" opcion; do
+SUBIR=""; SUBIR_URL=""; SUBIR_TIPO="texto"
+while getopts ":lx:n:w:e:s:u:t:rh" opcion; do
     case $opcion in
         l) LISTAR=1 ;;
         x) DIFICULTAD=$(normalizar "$OPTARG") ;;
         n) NOMBRE=$OPTARG ;;
         w) WRITEUP=$OPTARG ;;
         e) ELEGIDO=$OPTARG ;;
+        s) SUBIR=$OPTARG ;;
+        u) SUBIR_URL=$OPTARG ;;
+        t) SUBIR_TIPO=$OPTARG ;;
         r) AZAR=1 ;;
         h) ayuda; exit 0 ;;
         :) echo -e "${ROJO}[-] A -$OPTARG le falta un valor.${FIN}"; ayuda; exit 1 ;;
@@ -318,4 +418,8 @@ fi
 
 if [ -n "$WRITEUP" ]; then
     writeup "$WRITEUP"
+fi
+
+if [ -n "$SUBIR" ]; then
+    enviar_writeup "$SUBIR" "$SUBIR_URL" "$SUBIR_TIPO"
 fi

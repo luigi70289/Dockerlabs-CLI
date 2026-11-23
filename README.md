@@ -33,6 +33,7 @@ chmod +x dockerlabs.sh
 | `./dockerlabs.sh -w <nombre>` | Descarga la máquina y te deja elegir uno de sus writeups |
 | `./dockerlabs.sh -wr <nombre>` | Descarga la máquina y un writeup al azar |
 | `./dockerlabs.sh -w <nombre> -e <número o autor>` | Descarga la máquina y el writeup que indiques, sin preguntar |
+| `./dockerlabs.sh -s <nombre> -u <url>` | Envía (propone) un writeup de esa máquina a DockerLabs (requiere cuenta) |
 | `./dockerlabs.sh -h` | Muestra la ayuda |
 
 Dificultades: `muy-facil`, `facil`, `medio` y `dificil`.
@@ -55,6 +56,25 @@ Todo se guarda en la carpeta desde la que ejecutas el script:
 
 - `<maquina>.zip`: la máquina. Dentro vienen `<maquina>.tar` y `auto_deploy.sh`.
 - `<Maquina>_writeup_<autor>.md`: el writeup, en Markdown.
+
+## Enviar un writeup
+
+Si has resuelto una máquina y quieres proponer tu writeup para que aparezca en DockerLabs, puedes
+enviarlo con `-s`. **No sube un archivo: manda el enlace** de tu writeup (por ejemplo, tu `.md` en
+GitHub), y queda pendiente de que el equipo de DockerLabs lo revise y lo publique.
+
+Necesitas tu cuenta de DockerLabs. El script pide el usuario y la contraseña en el momento (la
+contraseña no se ve al teclear) y no los guarda. Si prefieres no escribirlos cada vez, puedes
+ponerlos en las variables `DOCKERLABS_USER` y `DOCKERLABS_PASS`.
+
+```bash
+./dockerlabs.sh -s trust -u https://github.com/tuusuario/writeups/blob/main/trust.md
+./dockerlabs.sh -s trust -u https://youtu.be/xxxx -t video   # si es un vídeo
+```
+
+- `-u` es la URL de tu writeup (obligatoria).
+- `-t` es el tipo: `texto` (por defecto) o `video`.
+- Envía **solo writeups tuyos**. No subas el trabajo de otra persona como si fuera tuyo.
 
 ## Desplegar la máquina
 
