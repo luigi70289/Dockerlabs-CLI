@@ -117,3 +117,10 @@ funcionar hasta que se actualice.
 
 Las máquinas son de [DockerLabs](https://dockerlabs.es), creado por El Pingüino de Mario, y los writeups
 son de sus autores. Este script solo facilita la descarga.
+
+## Licencia
+
+Este script está bajo la licencia [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es):
+puedes usarlo, copiarlo y modificarlo citando al autor, sin fines comerciales y compartiendo
+tus cambios con la misma licencia. La licencia cubre solo el código de este repositorio, no las
+máquinas ni los writeups, que son de sus autores.

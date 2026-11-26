@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (c) 2026 Luis
+# Licencia: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
 # dockerlabs.sh - Lista y descarga máquinas de DockerLabs (https://dockerlabs.es) y sus writeups.
 # Proyecto no oficial, sin relación con DockerLabs.
 #
